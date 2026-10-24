@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.nio.file.Path;
+import org.springframework.http.CacheControl;
 
 @Controller
 public class ReceiptController {
@@ -36,19 +37,7 @@ public class ReceiptController {
                 .findFirst()
                 .orElse(null);
         if (image == null) {
-            Path leftover = receiptStorageService.findFirstFile(expenseId);
-            if (leftover == null) {
-                return ResponseEntity.notFound().build();
-            }
-            Resource leftoverResource = new UrlResource(leftover.toUri());
-            if (!leftoverResource.exists() || !leftoverResource.isReadable()) {
-                return ResponseEntity.notFound().build();
-            }
-            String leftoverName = leftover.getFileName().toString();
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + leftoverName + "\"")
-                    .contentType(receiptStorageService.mediaTypeFor(leftoverName))
-                    .body(leftoverResource);
+            return ResponseEntity.notFound().build();
         }
 
         Path filePath = receiptStorageService.resolvePath(image.getFilePath());
@@ -61,6 +50,7 @@ public class ReceiptController {
         MediaType mediaType = receiptStorageService.mediaTypeFor(filename);
 
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
                 .contentType(mediaType)
                 .body(resource);
