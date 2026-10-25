@@ -97,6 +97,10 @@ public class ApprovalService {
 
     @Audited(action = AuditLogService.ACTION_EXPENSE_REJECT, targetTable = AuditLogService.TABLE_EXPENSES, idParam = "expenseId")
     public Expense reject(Integer expenseId, LoginUser approver, Integer version, String comment) {
+        if (!StringUtils.hasText(comment)) {
+            throw new IllegalArgumentException(messages.get("validation.comment.required"));
+        }
+
         Expense expense = requirePendingExpenseForApproval(expenseId, approver, version);
         requireCurrentStep(expense);
 
