@@ -139,17 +139,10 @@
 
     <sql id="keywordCondition">
         <if test="keyword != null and keyword != ''">
-            AND (
-                e.title LIKE CONCAT('%', #{keyword}, '%') ESCAPE '|'
-                OR u.user_name LIKE CONCAT('%', #{keyword}, '%') ESCAPE '|'
-                OR CASE u.user_name
-                    WHEN 'yamada' THEN '山田'
-                    WHEN 'sato' THEN '佐藤'
-                    WHEN 'takahashi' THEN '高橋'
-                    WHEN 'ito' THEN '伊藤'
-                    WHEN 'suzuki' THEN '鈴木'
-                END LIKE CONCAT('%', #{keyword}, '%') ESCAPE '|'
-            )
+        AND (
+            e.title LIKE CONCAT('%', #{keyword}, '%') ESCAPE '|'
+            OR u.user_name LIKE CONCAT('%', #{keyword}, '%') ESCAPE '|'
+        )
         </if>
     </sql>
 
@@ -167,7 +160,7 @@
             WHERE ar.dept_id = u.dept_id
               AND ar.approver_user_id = #{approverUserId}
               AND ar.step_number = (
-                  <include refid="approvesSinceLastSubmit"/>
+        <include refid="approvesSinceLastSubmit"/>
               )
         )
     </sql>
@@ -213,7 +206,8 @@
 
     <select id="findById" resultMap="expenseWithDetailsMap">
         SELECT
-        <include refid="applicantJoinColumns"/>,
+        <include refid="applicantJoinColumns"/>
+,
         <include refid="expenseDetailJoinColumns"/>
         FROM expenses e
         <include refid="applicantJoins"/>
@@ -224,7 +218,8 @@
 
     <select id="findByIdAndUserId" resultMap="expenseWithDetailsMap">
         SELECT
-        <include refid="applicantJoinColumns"/>,
+        <include refid="applicantJoinColumns"/>
+,
         <include refid="expenseDetailJoinColumns"/>
         FROM expenses e
         <include refid="applicantJoins"/>
@@ -236,7 +231,8 @@
 
     <select id="findAccessibleByApprover" resultMap="expenseWithDetailsMap">
         SELECT
-        <include refid="applicantJoinColumns"/>,
+        <include refid="applicantJoinColumns"/>
+,
         <include refid="expenseDetailJoinColumns"/>
         FROM expenses e
         <include refid="applicantJoins"/>
@@ -273,16 +269,16 @@
         <include refid="applicantJoins"/>
         WHERE e.status = 'PENDING'
           AND <include refid="currentApprovalStepExists"/>
-        <include refid="keywordCondition"/>
+    <include refid="keywordCondition"/>
         ORDER BY e.submitted_at ASC, e.expense_id ASC
         LIMIT 100
-    </select>
+</select>
 
-    <select id="findProcessedForApprover" resultMap="expenseListMap">
+<select id="findProcessedForApprover" resultMap="expenseListMap">
         SELECT
-        <include refid="applicantJoinColumns"/>
+    <include refid="applicantJoinColumns"/>
         FROM expenses e
-        <include refid="applicantJoins"/>
+    <include refid="applicantJoins"/>
         WHERE EXISTS (
             SELECT 1
             FROM approval_histories ah
@@ -290,8 +286,8 @@
               AND ah.approver_user_id = #{approverUserId}
               AND ah.action IN ('APPROVE', 'REJECT')
         )
-        <include refid="keywordCondition"/>
+    <include refid="keywordCondition"/>
         ORDER BY e.expense_id DESC
         LIMIT 100
-    </select>
+</select>
 </mapper>
