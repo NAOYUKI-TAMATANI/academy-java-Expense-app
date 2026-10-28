@@ -147,7 +147,7 @@
                                     th:disabled="${#lists.isEmpty(expense.receiptImages)}">
                                 <i class="bi bi-send me-1"></i><span th:text="#{common.submit}">申請</span>
                             </button>
-                            <p class="text-muted small mb-0 mt-2"
+                            <p class="text-danger small mb-0 mt-2"
                                th:if="${#lists.isEmpty(expense.receiptImages)}">申請するには領収書が必要です。</p>
                         </form>
                         <form th:action="@{/expenses/{id}/delete(id=${expense.expenseId})}" method="post"
