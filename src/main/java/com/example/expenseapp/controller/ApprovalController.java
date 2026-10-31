@@ -37,7 +37,7 @@ public class ApprovalController {
         this.messages = messages;
     }
 
-    @GetMapping({"", "/"})
+    @GetMapping({ "", "/" })
     public String list(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(value = "keyword", required = false) String keyword,
@@ -49,15 +49,15 @@ public class ApprovalController {
     }
 
     @GetMapping("/{expenseId}")
-    @PreAuthorize("@expenseAuthorizationService.isRouteMember(#expenseId, authentication.principal)")
+    @PreAuthorize("@expenseAuthorizationService.canView(#expenseId, authentication.principal)")
     public String detail(
             @PathVariable Integer expenseId,
             @AuthenticationPrincipal LoginUser loginUser,
             Model model) {
         var expense = approvalService.getExpenseForApprover(expenseId, loginUser);
         model.addAttribute("expense", expense);
-        model.addAttribute("canApprove", expense.getStatus().isPending()
-                && expenseAuthorizationService.isRouteMember(expenseId, loginUser));
+        model.addAttribute("canApprove",
+                expenseAuthorizationService.canApprove(expenseId, loginUser));
         if (!model.containsAttribute("approvalForm")) {
             model.addAttribute("approvalForm", new ApprovalForm(expense.getVersion()));
         }
@@ -73,7 +73,8 @@ public class ApprovalController {
             BindingResult bindingResult,
             RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.approvalForm", bindingResult);
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.approvalForm",
+                    bindingResult);
             redirectAttributes.addFlashAttribute("approvalForm", approvalForm);
             return "redirect:/approvals/" + expenseId;
         }
@@ -94,7 +95,8 @@ public class ApprovalController {
             BindingResult bindingResult,
             RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.approvalForm", bindingResult);
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.approvalForm",
+                    bindingResult);
             redirectAttributes.addFlashAttribute("approvalForm", approvalForm);
             return "redirect:/approvals/" + expenseId;
         }
