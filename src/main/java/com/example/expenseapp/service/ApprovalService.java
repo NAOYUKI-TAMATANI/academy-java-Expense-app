@@ -117,12 +117,25 @@ public class ApprovalService {
                 .orElseThrow(() -> new ExpenseNotFoundException(expenseId));
     }
 
-    private Expense requirePendingExpenseForApproval(Integer expenseId, LoginUser approver, Integer version) {
+    private Expense requirePendingExpenseForApproval(
+            Integer expenseId,
+            LoginUser approver,
+            Integer version) {
         Expense expense = expenseMapper.findAccessibleByApprover(expenseId, approver.getUserId())
                 .orElseThrow(() -> new ExpenseNotFoundException(expenseId));
+
         if (!expense.getStatus().isPending()) {
             throw new InvalidExpenseStateException(expense.getStatus(), "expense.operation.approve");
         }
+
+        if (version == null || !version.equals(expense.getVersion())) {
+            throw new OptimisticLockException();
+        }
+
+        if (!expenseAuthorizationService.canApprove(expenseId, approver)) {
+            throw new AccessDeniedException(messages.get("error.access.denied"));
+        }
+
         return expense;
     }
 
