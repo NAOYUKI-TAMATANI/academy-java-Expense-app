@@ -1,5 +1,6 @@
 package com.example.expenseapp.security;
 
+import com.example.expenseapp.entity.ApprovalRoute;
 import com.example.expenseapp.entity.Expense;
 import com.example.expenseapp.mapper.ApprovalRouteMapper;
 import com.example.expenseapp.mapper.ExpenseMapper;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 経費データへの IDOR 対策用。Controller / Service から SpEL で参照する。
+ * 
  * <pre>
  * {@code @PreAuthorize("@expenseAuthorizationService.isOwner(#expenseId, authentication.principal)")}
  * </pre>
@@ -45,7 +47,8 @@ public class ExpenseAuthorizationService {
             return false;
         }
         Integer deptId = expense.getApplicant().getDeptId();
-        return matchesCurrentStep(deptId, expenseId, loginUser, false);
+        return matchesCurrentStep(deptId, expenseId, loginUser, false)
+                || hasCompletedStep(deptId, expenseId, loginUser);
     }
 
     public boolean canEdit(Integer expenseId, LoginUser loginUser) {
@@ -115,5 +118,19 @@ public class ExpenseAuthorizationService {
             return false;
         }
         return expenseMapper.findByIdAndUserId(expenseId, loginUser.getUserId()).isPresent();
+    }
+
+    private boolean hasCompletedStep(Integer deptId, Integer expenseId, LoginUser loginUser) {
+        ApprovalRoute currentStep = approvalRouteMapper.findCurrentStep(deptId, expenseId)
+                .orElse(null);
+
+        if (currentStep == null || currentStep.getStepNumber() == null) {
+            return false;
+        }
+
+        return approvalRouteMapper.findByDeptIdOrderByStep(deptId).stream()
+                .anyMatch(route -> loginUser.getUserId().equals(route.getApproverUserId())
+                        && route.getStepNumber() != null
+                        && route.getStepNumber() < currentStep.getStepNumber());
     }
 }
