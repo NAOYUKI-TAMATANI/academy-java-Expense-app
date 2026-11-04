@@ -108,8 +108,8 @@ public class ExpenseAuthorizationService {
                         .anyMatch(route -> route.getStepNumber() != null
                                 && current.getStepNumber() != null
                                 && (upcomingOnly
-                                        ? route.getStepNumber() > current.getStepNumber()
-                                        : route.getStepNumber() == current.getStepNumber())))
+                                ? route.getStepNumber() > current.getStepNumber()
+                                : route.getStepNumber() == current.getStepNumber())))
                 .orElse(false);
     }
 
