@@ -153,20 +153,24 @@
         </if>
     </sql>
 
+    <sql id="historyAfterLastSubmit">
+        AND ah_step.history_id &gt; COALESCE(
+            (
+                SELECT MAX(ah_submit.history_id)
+                FROM approval_histories ah_submit
+                WHERE ah_submit.expense_id = ah_step.expense_id
+                  AND ah_submit.action = 'SUBMIT'
+            ),
+            0
+        )
+    </sql>
+
     <sql id="approvesSinceLastSubmit">
         SELECT COUNT(*) + 1
         FROM approval_histories ah_step
         WHERE ah_step.expense_id = e.expense_id
           AND ah_step.action IN ('APPROVE', 'REJECT')
-          AND ah_step.history_id > COALESCE (
-            (
-                SELECT MAX(ah_submit.history_id)
-                FROM approval_histories ah_submit
-                WHERE ah_submit.expense_id = e.expense_id
-                  AND ah_submit.action = 'SUBMIT'
-            ),
-            0
-          )
+        <include refid="historyAfterLastSubmit"/>
     </sql>
 
     <sql id="currentApprovalStepExists">
@@ -176,7 +180,7 @@
             WHERE ar.dept_id = u.dept_id
               AND ar.approver_user_id = #{approverUserId}
               AND ar.step_number = (
-                  <include refid="approvesSinceLastSubmit"/>
+            <include refid="approvesSinceLastSubmit"/>
               )
         )
     </sql>
