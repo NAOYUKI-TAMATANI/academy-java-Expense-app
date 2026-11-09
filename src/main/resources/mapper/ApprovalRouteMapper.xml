@@ -46,10 +46,11 @@
         INNER JOIN users u ON ar.approver_user_id = u.user_id
         WHERE ar.dept_id = #{deptId}
           AND ar.step_number = (
-              SELECT COUNT(*) + 1
-              FROM approval_histories ah
-              WHERE ah.expense_id = #{expenseId}
-                AND ah.action IN ('APPROVE', 'REJECT')
-          )
+            SELECT COUNT(*) + 1
+            FROM approval_histories ah_step
+            WHERE ah_step.expense_id = #{expenseId}
+              AND ah_step.action IN ('APPROVE', 'REJECT')
+              <include refid="com.example.expenseapp.mapper.ExpenseMapper.historyAfterLastSubmit"/>
+        )
     </select>
 </mapper>
