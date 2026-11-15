@@ -19,6 +19,10 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.example.expenseapp.entity.ApprovalAction;
+import com.example.expenseapp.mapper.ApprovalHistoryMapper;
+import org.springframework.security.access.AccessDeniedException;
+
 class ExpenseServiceIntegrationTest extends AbstractMySqlIntegrationTest {
 
     @Autowired
@@ -26,6 +30,12 @@ class ExpenseServiceIntegrationTest extends AbstractMySqlIntegrationTest {
 
     @Autowired
     private ReceiptStorageService receiptStorageService;
+
+    @Autowired
+    private ApprovalHistoryMapper approvalHistoryMapper;
+
+    @Autowired
+    private ApprovalService approvalService;
 
     @Test
     void createDraftAndSubmit() {
@@ -137,7 +147,7 @@ class ExpenseServiceIntegrationTest extends AbstractMySqlIntegrationTest {
                 "file",
                 "receipt.png",
                 "image/png",
-                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A});
+                new byte[] { (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
 
         var updated = expenseService.attachReceipt(created.getExpenseId(), yamada, created.getVersion(), file);
 
@@ -158,7 +168,7 @@ class ExpenseServiceIntegrationTest extends AbstractMySqlIntegrationTest {
                         "file",
                         "receipt.png",
                         "image/png",
-                        new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}));
+                        new byte[] { (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }));
         Path stored = receiptStorageService.resolvePath(updated.getReceiptImages().getFirst().getFilePath());
         assertThat(stored).exists();
 
@@ -227,5 +237,145 @@ class ExpenseServiceIntegrationTest extends AbstractMySqlIntegrationTest {
         assertThat(afterDelete.getReceiptImages()).isEmpty();
         assertThat(afterDelete.getVersion()).isEqualTo(attached.getVersion() + 1);
         assertThat(stored).doesNotExist();
+    }
+
+    @Test
+    void applicantCanWithdrawPendingExpenseAndRecordsHistory() {
+        LoginUser yamada = loginAs("yamada");
+        var draft = expenseService.createDraft(
+                yamada,
+                ExpenseTestDataFactory.sampleCommand("取り下げテスト"));
+        var submitted = submitWithReceipt(yamada, draft);
+
+        var withdrawn = expenseService.withdraw(
+                submitted.getExpenseId(),
+                yamada,
+                submitted.getVersion(),
+                "誤って申請したため");
+
+        assertThat(withdrawn.getStatus()).isEqualTo(ExpenseStatus.WITHDRAWN);
+        assertThat(withdrawn.getVersion()).isEqualTo(submitted.getVersion() + 1);
+
+        var history = approvalHistoryMapper.findByExpenseId(submitted.getExpenseId()).getLast();
+        assertThat(history.getAction()).isEqualTo(ApprovalAction.WITHDRAW);
+        assertThat(history.getApproverUserId()).isEqualTo(yamada.getUserId());
+        assertThat(history.getComment()).isEqualTo("誤って申請したため");
+
+        assertThat(AuditLogAssertions.countByAction(
+                jdbcTemplate,
+                AuditLogService.ACTION_EXPENSE_WITHDRAW,
+                submitted.getExpenseId())).isEqualTo(1);
+    }
+
+    @Test
+    void withdrawWithoutReasonFails() {
+        LoginUser yamada = loginAs("yamada");
+        var draft = expenseService.createDraft(
+                yamada,
+                ExpenseTestDataFactory.sampleCommand("理由なし取り下げ"));
+        var submitted = submitWithReceipt(yamada, draft);
+
+        assertThatThrownBy(() -> expenseService.withdraw(
+                submitted.getExpenseId(),
+                yamada,
+                submitted.getVersion(),
+                "  "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("取り下げ理由を入力してください。");
+    }
+
+    @Test
+    void otherUserCannotWithdrawExpense() {
+        LoginUser yamada = loginAs("yamada");
+        var draft = expenseService.createDraft(
+                yamada,
+                ExpenseTestDataFactory.sampleCommand("他人の取り下げ"));
+        var submitted = submitWithReceipt(yamada, draft);
+
+        LoginUser takahashi = loginAs("takahashi");
+
+        assertThatThrownBy(() -> expenseService.withdraw(
+                submitted.getExpenseId(),
+                takahashi,
+                submitted.getVersion(),
+                "取り下げ理由"))
+                .isInstanceOf(ExpenseNotFoundException.class);
+    }
+
+    @Test
+    void approverCannotWithdrawExpense() {
+        LoginUser yamada = loginAs("yamada");
+        var draft = expenseService.createDraft(
+                yamada,
+                ExpenseTestDataFactory.sampleCommand("承認者の取り下げ"));
+        var submitted = submitWithReceipt(yamada, draft);
+
+        LoginUser sato = loginAs("sato");
+
+        assertThatThrownBy(() -> expenseService.withdraw(
+                submitted.getExpenseId(),
+                sato,
+                submitted.getVersion(),
+                "取り下げ理由"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void withdrawWithStaleVersionFails() {
+        LoginUser yamada = loginAs("yamada");
+        var draft = expenseService.createDraft(
+                yamada,
+                ExpenseTestDataFactory.sampleCommand("古いバージョン"));
+        var submitted = submitWithReceipt(yamada, draft);
+
+        assertThatThrownBy(() -> expenseService.withdraw(
+                submitted.getExpenseId(),
+                yamada,
+                submitted.getVersion() - 1,
+                "取り下げ理由"))
+                .isInstanceOf(OptimisticLockException.class);
+    }
+
+    @Test
+    void withdrawnExpenseIsExcludedFromPendingListAndCannotBeProcessed() {
+        LoginUser yamada = loginAs("yamada");
+        var draft = expenseService.createDraft(
+                yamada,
+                ExpenseTestDataFactory.sampleCommand("取り下げ後の操作"));
+        var submitted = submitWithReceipt(yamada, draft);
+        var withdrawn = expenseService.withdraw(
+                submitted.getExpenseId(),
+                yamada,
+                submitted.getVersion(),
+                "誤申請");
+
+        LoginUser sato = loginAs("sato");
+
+        assertThat(approvalService.findPendingExpenses(sato, null))
+                .extracting("expenseId")
+                .doesNotContain(submitted.getExpenseId());
+
+        ExpenseSaveCommand update = ExpenseTestDataFactory.sampleCommand("編集");
+        update.setVersion(withdrawn.getVersion());
+
+        assertThatThrownBy(() -> expenseService.updateDraft(
+                withdrawn.getExpenseId(), yamada, update))
+                .isInstanceOf(InvalidExpenseStateException.class);
+
+        assertThatThrownBy(() -> expenseService.deleteDraft(
+                withdrawn.getExpenseId(), yamada, withdrawn.getVersion()))
+                .isInstanceOf(InvalidExpenseStateException.class);
+
+        assertThatThrownBy(() -> expenseService.submit(
+                withdrawn.getExpenseId(), yamada, withdrawn.getVersion()))
+                .isInstanceOf(InvalidExpenseStateException.class);
+
+        assertThatThrownBy(() -> approvalService.approve(
+                withdrawn.getExpenseId(), sato, withdrawn.getVersion(), ""))
+                .isInstanceOf(ExpenseNotFoundException.class);
+
+        assertThatThrownBy(() -> approvalService.reject(
+                withdrawn.getExpenseId(), sato, withdrawn.getVersion(), "差戻し理由"))
+                .isInstanceOf(ExpenseNotFoundException.class);
     }
 }

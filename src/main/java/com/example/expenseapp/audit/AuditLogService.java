@@ -24,6 +24,8 @@ public class AuditLogService {
     public static final String TABLE_USERS = "users";
     public static final String TABLE_EXPENSES = "expenses";
 
+    public static final String ACTION_EXPENSE_WITHDRAW = "EXPENSE_WITHDRAW";
+
     private final AuditLogMapper auditLogMapper;
 
     public AuditLogService(AuditLogMapper auditLogMapper) {
