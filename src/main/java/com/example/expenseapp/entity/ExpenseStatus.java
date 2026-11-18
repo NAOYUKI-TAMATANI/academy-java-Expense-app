@@ -4,7 +4,8 @@ public enum ExpenseStatus {
     DRAFT,
     PENDING,
     APPROVED,
-    REJECTED;
+    REJECTED,
+    WITHDRAWN;
 
     public boolean isEditable() {
         return this == DRAFT || this == REJECTED;
@@ -24,5 +25,9 @@ public enum ExpenseStatus {
 
     public boolean isRejected() {
         return this == REJECTED;
+    }
+
+    public boolean IsWithDrawn() {
+        return this == WITHDRAWN;
     }
 }

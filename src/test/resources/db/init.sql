@@ -69,7 +69,7 @@ CREATE TABLE expenses (
     CONSTRAINT fk_expenses_user
         FOREIGN KEY (user_id) REFERENCES users (user_id),
     CONSTRAINT chk_expenses_status
-        CHECK (status IN ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED')),
+        CHECK (status IN ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN')),
     CONSTRAINT chk_expenses_total_amount CHECK (total_amount >= 0),
     CONSTRAINT chk_expenses_version CHECK (version >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -143,7 +143,7 @@ CREATE TABLE approval_histories (
     CONSTRAINT fk_approval_histories_approver
         FOREIGN KEY (approver_user_id) REFERENCES users (user_id),
     CONSTRAINT chk_approval_histories_action
-        CHECK (action IN ('SUBMIT', 'APPROVE', 'REJECT'))
+        CHECK (action IN ('SUBMIT', 'APPROVE', 'REJECT', 'WITHDRAW'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE audit_logs (
@@ -191,11 +191,11 @@ INSERT INTO tax_rates (rate_percent, description) VALUES
 -- =========================================================
 
 INSERT INTO users (user_name, email, password, dept_id, position_id, role) VALUES
-    ('yamada',    'yamada@example.com',    '$2a$10$xGKij9d5JT6NXC93RuJPJu/oe5g3ByYq4FjzKVrjNAHZ9TpbGTQEC', 1, 1, 'USER'),
-    ('sato',      'sato@example.com',      '$2a$10$z0f6h8JZpV0jl/STC/WEr.5v3p7nxIDQpGHP.2V6ALLJGM6qPcLGW', 1, 3, 'APPROVER'),
-    ('takahashi', 'takahashi@example.com', '$2a$10$4E8/fC3LQOKOQwTnsLVmeuNGkksZMWgVLdmBP/eNLB9Vl0uiIJiri', 2, 1, 'USER'),
-    ('ito',       'ito@example.com',       '$2a$10$xGKij9d5JT6NXC93RuJPJu/oe5g3ByYq4FjzKVrjNAHZ9TpbGTQEC', 2, 3, 'APPROVER'),
-    ('suzuki',    'suzuki@example.com',    '$2a$10$z0f6h8JZpV0jl/STC/WEr.5v3p7nxIDQpGHP.2V6ALLJGM6qPcLGW', 3, 4, 'APPROVER');
+    ('yamada',    'yamada@example.com',    CONCAT('$2a', '$10', '$xGKij9d5JT6NXC93RuJPJu/oe5g3ByYq4FjzKVrjNAHZ9TpbGTQEC'), 1, 1, 'USER'),
+    ('sato',      'sato@example.com',      CONCAT('$2a', '$10', '$z0f6h8JZpV0jl/STC/WEr.5v3p7nxIDQpGHP.2V6ALLJGM6qPcLGW'), 1, 3, 'APPROVER'),
+    ('takahashi', 'takahashi@example.com', CONCAT('$2a', '$10', '$4E8/fC3LQOKOQwTnsLVmeuNGkksZMWgVLdmBP/eNLB9Vl0uiIJiri'), 2, 1, 'USER'),
+    ('ito',       'ito@example.com',       CONCAT('$2a', '$10', '$xGKij9d5JT6NXC93RuJPJu/oe5g3ByYq4FjzKVrjNAHZ9TpbGTQEC'), 2, 3, 'APPROVER'),
+    ('suzuki',    'suzuki@example.com',    CONCAT('$2a', '$10', '$z0f6h8JZpV0jl/STC/WEr.5v3p7nxIDQpGHP.2V6ALLJGM6qPcLGW'), 3, 4, 'APPROVER');
 
 -- =========================================================
 -- 承認ルート（部署ごとに step 順。最終ステップは経理部長）

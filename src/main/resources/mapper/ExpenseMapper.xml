@@ -188,6 +188,16 @@
           AND version = #{version}
     </update>
 
+    <update id="withdrawPending">
+        UPDATE expenses
+        SET status = 'WITHDRAWN',
+            version = version + 1
+        WHERE expense_id = #{expenseId}
+          AND user_id = #{userId}
+          AND status = 'PENDING'
+          AND version = #{version}
+    </update>
+
     <update id="updateById">
         UPDATE expenses
         SET title = #{title},

@@ -94,6 +94,7 @@ public class ExpenseController {
         var expense = expenseService.getExpenseForOwner(expenseId, loginUser);
         model.addAttribute("expense", expense);
         model.addAttribute("editable", expense.getStatus().isEditable());
+        model.addAttribute("withdrawable", expense.getStatus().isPending());
         return "expenses/detail";
     }
 
@@ -163,6 +164,25 @@ public class ExpenseController {
             redirectAttributes.addFlashAttribute(
                     "successMessage",
                     messages.get("expense.submit.success"));
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+        return "redirect:/expenses/" + expenseId;
+    }
+
+    @PostMapping("/{expenseId}/withdraw")
+    @PreAuthorize("@expenseAuthorizationService.isOwner(#expenseId, authentication.principal)")
+    public String withdraw(
+            @PathVariable Integer expenseId,
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam Integer version,
+            @RequestParam String comment,
+            RedirectAttributes redirectAttributes) {
+        try {
+            expenseService.withdraw(expenseId, loginUser, version, comment);
+            redirectAttributes.addFlashAttribute(
+                "successMessage",
+                messages.get("expense.withdraw.success"));
         } catch (IllegalArgumentException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }

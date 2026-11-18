@@ -66,8 +66,7 @@ public class ApprovalService {
     public Expense getExpenseForApprover(Integer expenseId, LoginUser approver) {
         Expense expense = expenseMapper.findAccessibleByApprover(expenseId, approver.getUserId())
                 .orElseThrow(() -> new ExpenseNotFoundException(expenseId));
-        if (expenseAuthorizationService.canView(expenseId, approver)
-                || expenseAuthorizationService.isUpcomingApprover(expenseId, approver)) {
+        if (expenseAuthorizationService.canView(expenseId, approver)) {
             return expense;
         }
         throw new AccessDeniedException(messages.get("error.access.denied"));
@@ -90,7 +89,7 @@ public class ApprovalService {
                 ? ExpenseStatus.APPROVED
                 : ExpenseStatus.PENDING;
         expense.setStatus(newStatus);
-        assertUpdated(expenseMapper.updateById(expense));
+        assertUpdated(expenseMapper.updateWithVersion(expense));
 
         return loadAccessibleExpense(expenseId, approver.getUserId());
     }
@@ -107,7 +106,7 @@ public class ApprovalService {
                 normalizeComment(comment));
 
         expense.setStatus(ExpenseStatus.REJECTED);
-        assertUpdated(expenseMapper.updateById(expense));
+        assertUpdated(expenseMapper.updateWithVersion(expense));
 
         return loadAccessibleExpense(expenseId, approver.getUserId());
     }
@@ -117,12 +116,29 @@ public class ApprovalService {
                 .orElseThrow(() -> new ExpenseNotFoundException(expenseId));
     }
 
-    private Expense requirePendingExpenseForApproval(Integer expenseId, LoginUser approver, Integer version) {
+    private Expense requirePendingExpenseForApproval(
+            Integer expenseId,
+            LoginUser approver,
+            Integer version) {
+        if (!approver.isApprover()) {
+            throw new AccessDeniedException(messages.get("error.access.denied"));
+        }
+
         Expense expense = expenseMapper.findAccessibleByApprover(expenseId, approver.getUserId())
                 .orElseThrow(() -> new ExpenseNotFoundException(expenseId));
+
+        if (!expenseAuthorizationService.canApprove(expenseId, approver)) {
+            throw new AccessDeniedException(messages.get("error.access.denied"));
+        }
+
         if (!expense.getStatus().isPending()) {
             throw new InvalidExpenseStateException(expense.getStatus(), "expense.operation.approve");
         }
+
+        if (version == null || !version.equals(expense.getVersion())) {
+            throw new OptimisticLockException();
+        }
+
         return expense;
     }
 
