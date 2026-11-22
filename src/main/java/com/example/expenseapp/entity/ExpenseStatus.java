@@ -26,8 +26,4 @@ public enum ExpenseStatus {
     public boolean isRejected() {
         return this == REJECTED;
     }
-
-    public boolean IsWithDrawn() {
-        return this == WITHDRAWN;
-    }
 }
