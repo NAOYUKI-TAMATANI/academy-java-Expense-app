@@ -21,6 +21,8 @@ import com.example.expenseapp.common.Messages;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -107,6 +109,7 @@ public class ExpenseService {
     @Audited(action = AuditLogService.ACTION_EXPENSE_SUBMIT, targetTable = AuditLogService.TABLE_EXPENSES, idParam = "expenseId")
     public Expense submit(Integer expenseId, LoginUser user, Integer version) {
         Expense existing = requireOwnedExpense(expenseId, user.getUserId());
+        assertVersion(existing, version);
         if (!existing.getStatus().isEditable()) {
             throw new InvalidExpenseStateException(existing.getStatus(), "expense.operation.submit");
         }
@@ -116,9 +119,53 @@ public class ExpenseService {
 
         existing.setStatus(ExpenseStatus.PENDING);
         existing.setSubmittedAt(LocalDateTime.now());
-        assertUpdated(expenseMapper.updateById(existing));
+        assertUpdated(expenseMapper.updateWithVersion(existing));
 
         approvalHistoryRecorder.record(expenseId, user.getUserId(), ApprovalAction.SUBMIT, null);
+        return requireOwnedExpense(expenseId, user.getUserId());
+    }
+
+    @Audited(action = AuditLogService.ACTION_EXPENSE_WITHDRAW, targetTable = AuditLogService.TABLE_EXPENSES, idParam = "expenseId")
+    public Expense withdraw(
+            Integer expenseId,
+            LoginUser user,
+            Integer version,
+            String comment) {
+        if (user.isApprover()) {
+            throw new AccessDeniedException(messages.get("error.access.denied"));
+        }
+
+        Expense existing = requireOwnedExpense(expenseId, user.getUserId());
+
+        if (!existing.getStatus().isPending()) {
+            throw new InvalidExpenseStateException(
+                    existing.getStatus(),
+                    "expense.operation.withdraw");
+        }
+
+        if (!StringUtils.hasText(comment)) {
+            throw new IllegalArgumentException(
+                    messages.get("validation.withdraw.comment.required"));
+        }
+
+        String normalizedComment = comment.trim();
+        if (normalizedComment.length() > 500) {
+            throw new IllegalArgumentException(messages.get("validation.comment.max"));
+        }
+
+        assertVersion(existing, version);
+
+        assertUpdated(expenseMapper.withdrawPending(
+                expenseId,
+                user.getUserId(),
+                version));
+
+        approvalHistoryRecorder.record(
+                expenseId,
+                user.getUserId(),
+                ApprovalAction.WITHDRAW,
+                normalizedComment);
+
         return requireOwnedExpense(expenseId, user.getUserId());
     }
 

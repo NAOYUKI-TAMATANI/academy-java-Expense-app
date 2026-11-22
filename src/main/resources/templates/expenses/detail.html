@@ -161,6 +161,29 @@
                     </div>
                 </div>
 
+            <div class="card app-card mb-4" th:if="${withdrawable}">
+                <div class="card-header">申請の取り下げ</div>
+                <div class="card-body">
+                    <form th:action="@{/expenses/{id}/withdraw(id=${expense.expenseId})}"
+                        method="post"
+                        onsubmit="return confirm('申請を取り下げますか？');">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" name="version" th:value="${expense.version}">
+
+                        <label for="withdraw-comment" class="form-label">取り下げ理由</label>
+                        <textarea id="withdraw-comment"
+                                name="comment"
+                                class="form-control mb-3"
+                                maxlength="500"
+                                required></textarea>
+
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            取り下げ
+                        </button>
+                    </form>
+                </div>
+            </div>
+
                 <div class="card app-card">
                     <div class="card-header" th:text="#{approval.history}">承認履歴</div>
                     <div class="card-body">

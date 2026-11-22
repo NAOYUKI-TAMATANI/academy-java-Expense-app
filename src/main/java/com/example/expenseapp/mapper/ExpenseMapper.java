@@ -15,6 +15,11 @@ public interface ExpenseMapper {
 
     int updateWithVersion(Expense expense);
 
+    int withdrawPending(
+        @Param("expenseId") Integer expenseId,
+        @Param("userId") Integer userId,
+        @Param("version") Integer version);
+
     int updateById(Expense expense);
 
     int deleteByIdUserIdAndVersion(

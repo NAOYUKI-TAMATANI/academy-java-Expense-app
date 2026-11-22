@@ -94,7 +94,7 @@ public class GlobalExceptionHandler {
             return "redirect:/approvals";
         }
         if (servletPath.startsWith("/expenses/")) {
-            return "redirect:" + servletPath.replaceAll("/(submit|delete|receipts)$", "");
+            return "redirect:" + servletPath.replaceAll("/(submit|delete|receipts|withdraw)$", "");
         }
         return listRedirect(request);
     }

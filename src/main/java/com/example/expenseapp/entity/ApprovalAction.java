@@ -4,7 +4,8 @@ public enum ApprovalAction {
 
     SUBMIT,
     APPROVE,
-    REJECT;
+    REJECT,
+    WITHDRAW;
 
     public boolean isDecision() {
         return this == APPROVE || this == REJECT;
